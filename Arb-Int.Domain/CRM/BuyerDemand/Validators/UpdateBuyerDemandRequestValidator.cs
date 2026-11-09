@@ -1,0 +1,27 @@
+using FluentValidation;
+
+namespace Arb_Int.Domain.Crm.Validation
+{
+    /// <summary>
+    /// Validerar metadataändringar på BuyerDemand.
+    /// </summary>
+    public sealed class UpdateBuyerDemandRequestValidator : AbstractValidator<UpdateBuyerDemandRequest>
+    {
+        /// <summary>
+        /// Konfigurerar reglerna för BuyerDemand-uppdateringar.
+        /// </summary>
+        public UpdateBuyerDemandRequestValidator()
+        {
+            RuleFor(x => x.Name).NotEmpty().Must(x => !string.IsNullOrWhiteSpace(x));
+            RuleFor(x => x.Description).NotEmpty().Must(x => !string.IsNullOrWhiteSpace(x));
+            RuleFor(x => x.Confidence).InclusiveBetween(0m, 1m).When(x => x.Confidence.HasValue);
+            RuleFor(x => x.OwnerUserId).NotEqual(Guid.Empty).When(x => x.OwnerUserId.HasValue);
+            RuleFor(x => x.InternalNotes).MaximumLength(4096);
+            RuleFor(x => x.RowVersion).NotEqual(0u);
+
+            RuleFor(x => x)
+                .Must(x => !x.ValidFromUtc.HasValue || !x.ValidToUtc.HasValue || x.ValidToUtc.Value >= x.ValidFromUtc.Value)
+                .WithMessage("ValidToUtc cannot be earlier than ValidFromUtc.");
+        }
+    }
+}

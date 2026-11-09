@@ -1,0 +1,22 @@
+namespace Arb_Int.Domain.Trading;
+
+/// <summary>
+/// Innehåller typspecifika värden för ett processkrav.
+/// </summary>
+public sealed class BuyerRfqProcessRequirementDetailsResponse
+{
+    /// <summary>
+    /// Identifierar processtypen.
+    /// </summary>
+    public int ProcessTypeId { get; init; }
+
+    /// <summary>
+    /// Anger om processen krävs, föredras eller är förbjuden.
+    /// </summary>
+    public ProcessRequirementMode Mode { get; init; }
+
+    /// <summary>
+    /// Innehåller eventuella processparametrar som JSON.
+    /// </summary>
+    public string? ProcessParametersJson { get; init; }
+}
