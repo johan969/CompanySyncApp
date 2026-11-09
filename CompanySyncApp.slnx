@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Arb-Int.Domain/Arb-Int.Domain.csproj" />
+  <Project Path="CompanySyncApp/CompanySyncApp.csproj" />
+</Solution>

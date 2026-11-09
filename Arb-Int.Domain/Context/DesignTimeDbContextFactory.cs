@@ -10,15 +10,12 @@ namespace Arb_Int.Domain
         public DesignTimeArb_IntDbContextFactory() { }
         public Arb_IntDbContext CreateDbContext(string[] args)
         {
-            IConfigurationRoot configuration = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile(@Directory.GetCurrentDirectory() + "/../Arb-Int.API/appsettings.json")
-#if DEBUG
-                .AddJsonFile(@Directory.GetCurrentDirectory() + "/../Arb-Int.API/appsettings.Development.json")
-#endif
-                .Build();
             var builder = new DbContextOptionsBuilder<Arb_IntDbContext>();
-            var connectionString = configuration.GetConnectionString("DBConnectionString");
+            var connectionString = Environment.GetEnvironmentVariable("COMPANYSYNC_DB_CONNECTION");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException("Miljövariabel saknas");
+            }
             builder.UseNpgsql(connectionString);
             return new Arb_IntDbContext(builder.Options);
         }
