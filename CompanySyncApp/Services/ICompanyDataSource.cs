@@ -4,5 +4,5 @@ namespace CompanySyncApp.Services;
 
 public interface ICompanyDataSource
 {
-    Task<IReadOnlyList<Company>> GetCompaniesAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ImportedCompany>> GetCompaniesAsync(CancellationToken cancellationToken = default);
 }
