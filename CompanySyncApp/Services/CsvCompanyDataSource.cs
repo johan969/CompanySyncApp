@@ -4,7 +4,7 @@ using Microsoft.VisualBasic.FileIO;
 
 namespace CompanySyncApp.Services;
 
-public sealed class CsvCompanyDataSource : ICompanyDataSource
+public sealed class CsvCompanyDataSource
 {
     private readonly string _filePath;
 

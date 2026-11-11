@@ -26,7 +26,6 @@ public sealed class CompanySyncService
         return _db.Organizations
             .AsNoTracking()
             .Where(org => org.NormalizedLegalName == normalizedName)
-            .Take(2)
             .ToListAsync(cancellationToken);
     }
 
