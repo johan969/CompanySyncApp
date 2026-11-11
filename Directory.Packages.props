@@ -12,6 +12,7 @@
     <PackageVersion Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
     <PackageVersion Include="Azure.Identity" Version="1.21.0" />
     <PackageVersion Include="BCrypt.Net-Next" Version="4.2.1" />
+    <PackageVersion Include="CsvHelper" Version="34.0.0" />
     <PackageVersion Include="Dapper" Version="2.1.89" />
     <PackageVersion Include="DeepL.net" Version="1.22.1" />
     <PackageVersion Include="FakeItEasy" Version="9.0.1" />
