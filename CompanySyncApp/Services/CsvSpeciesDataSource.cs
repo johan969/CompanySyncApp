@@ -1,0 +1,41 @@
+using CompanySyncApp.Models;
+using CsvHelper;
+
+namespace CompanySyncApp.Services;
+
+public sealed class CsvSpeciesDataSource
+{
+    private readonly string _filepath;
+
+    public CsvSpeciesDataSource(string filepath)
+    {
+        _filepath = filepath;
+    }
+
+    public async Task<List<ImportedAlgaeSpecies>> ReadSpeciesAsync(CancellationToken cancellationToken = default)
+    {
+        using var reader = CsvReader.FromFile(_filepath);
+
+        var species = new List<ImportedAlgaeSpecies>();
+        await reader.ReadHeaderAsync(cancellationToken);
+        
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var algae = reader.GetString("Algae species").Trim();
+            var producers = reader.GetString("Producers").Trim();
+            if (string.IsNullOrWhiteSpace(algae))
+            {
+                continue;
+            }
+
+            var specie = new ImportedAlgaeSpecies
+            {
+                SpeciesName = algae,
+                Producers = producers
+            };
+
+            species.Add(specie);
+        }
+        return species;
+    }
+}
