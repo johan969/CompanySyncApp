@@ -4,8 +4,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Update="data/Companies-All companies.csv" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="data/Algae species-All species.csv" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="CsvHelper" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
