@@ -25,13 +25,18 @@ public sealed class CsvSpeciesDataSource
             var producers = reader.GetString("Producers").Trim();
             if (string.IsNullOrWhiteSpace(algae))
             {
+                Console.Error.WriteLine($"Rad {reader.RowNumber} hoppades över: Alg art saknas");
                 continue;
             }
 
             var specie = new ImportedAlgaeSpecies
             {
+                SourceRowNumber = reader.RowNumber,
                 SpeciesName = algae,
-                Producers = producers
+                Producers = producers,
+                Genus = reader.GetString("Genus").Trim(),
+                Color = reader.GetString("Color").Trim(),
+                CommonName = reader.GetString("Common name").Trim()
             };
 
             species.Add(specie);

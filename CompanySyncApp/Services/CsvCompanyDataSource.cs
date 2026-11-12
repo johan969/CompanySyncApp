@@ -1,3 +1,4 @@
+using System.Globalization;
 using CompanySyncApp.Models;
 using CsvHelper;
 
@@ -24,15 +25,32 @@ public sealed class CsvCompanyDataSource
         {
             var name = reader.GetString("Name").Trim();
             var headquarters = reader.GetString("Headquarters").Trim();
-            if (string.IsNullOrWhiteSpace(name))
+            var species = reader.GetString("Species").Trim();
+            var website = reader.GetString("Website").Trim();
+            var dateText = reader.GetString("Last Modified").Trim();
+
+            if (!DateOnly.TryParseExact(
+                    dateText,
+                    "d MMMM yyyy",
+                    CultureInfo.GetCultureInfo("sv-SE"),
+                    DateTimeStyles.None,
+                    out var LastModified))
             {
+                Console.Error.WriteLine($"Rad {reader.RowNumber} skippas: Last Modified saknas eller är ogiltigt.");
                 continue;
             }
+            
+            
+            
 
             var company = new ImportedCompany
             {
+                SourceRowNumber = reader.RowNumber,
                 Name = name,
-                Headquarters = headquarters
+                Headquarters = headquarters,
+                Species = species,
+                Website = website,
+                LastModified = LastModified
             };
 
             companies.Add(company);
