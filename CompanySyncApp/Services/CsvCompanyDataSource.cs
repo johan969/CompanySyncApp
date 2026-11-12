@@ -24,15 +24,18 @@ public sealed class CsvCompanyDataSource
         {
             var name = reader.GetString("Name").Trim();
             var headquarters = reader.GetString("Headquarters").Trim();
+            var species = reader.GetString("Species").Trim();
             if (string.IsNullOrWhiteSpace(name))
             {
+                Console.Error.WriteLine($"Rad {reader.RowNumber} hoppades över: Namn saknas");
                 continue;
             }
 
             var company = new ImportedCompany
             {
                 Name = name,
-                Headquarters = headquarters
+                Headquarters = headquarters,
+                Species = species
             };
 
             companies.Add(company);

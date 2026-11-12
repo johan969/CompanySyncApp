@@ -25,6 +25,7 @@ public sealed class CsvSpeciesDataSource
             var producers = reader.GetString("Producers").Trim();
             if (string.IsNullOrWhiteSpace(algae))
             {
+                Console.Error.WriteLine($"Rad {reader.RowNumber} hoppades över: Alg art saknas");
                 continue;
             }
 
@@ -32,6 +33,7 @@ public sealed class CsvSpeciesDataSource
             {
                 SpeciesName = algae,
                 Producers = producers
+                
             };
 
             species.Add(specie);

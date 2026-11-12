@@ -2,6 +2,8 @@ namespace CompanySyncApp.Models;
 
 public sealed record ImportedCompany
 {
+    
+    
     public required string Name { get; init; }
     public string? Headquarters { get; init; }
     public string? ValueChain { get; init; }
