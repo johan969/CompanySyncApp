@@ -13,6 +13,7 @@ public sealed record ImportedCompany
     public string? IndustryApplications { get; init; }
     public string? IndustrySubsectorTags { get; init; }
     public string? Investors { get; init; }
+    public long SourceRowNumber { get; init; }
     public string? AssociationFocus { get; init; }
     public int? FoundingYear { get; init; }
     public string? StartupScaleupStatus { get; init; }

@@ -13,6 +13,7 @@ public sealed record ImportedAlgaeSpecies
  
     [CsvColumn("Producers")]
     public string Producers { get; set; } = string.Empty;
+    public long SourceRowNumber { get; init; }
  
     [CsvColumn("Genus")]
     public string Genus { get; set; } = string.Empty;
