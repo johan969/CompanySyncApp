@@ -10,8 +10,8 @@ namespace CompanySyncApp.Services;
 
 public sealed class ImportSyncService
 {
-       public async Task ImportAsync()                                                                              
-   {                                                                                                                   
+       public async Task ImportAsync(string filepathCompany, string filePathSpecies)
+       {
        var connectionString = Environment.GetEnvironmentVariable("COMPANYSYNC_DB_CONNECTION");                         
                                                                                                                        
        if (string.IsNullOrWhiteSpace(connectionString))                                                                
@@ -23,117 +23,18 @@ public sealed class ImportSyncService
            .UseNpgsql(connectionString)                                                                                
            .Options;                                                                                                   
                                                                                                                        
-       await using var db = new ImportDbContext(options);                                                              
-       await ImportCompaniesAsync(db);                                                                                 
-       await ImportSpeciesAsync(db);                                                                                   
-       await ImportCompanySpeciesAsync(db);                                                                            
-   }                                                                                                                   
-    private static async Task ImportCompaniesAsync(ImportDbContext db)                                                          
-{                                                                                                                          
-    var filepath = Path.Combine(                                                                                           
-        AppContext.BaseDirectory,                                                                                          
-        "data",                                                                                                            
-        "Companies-All companies.csv");                                                                                    
-    var source = new CsvCompanyDataSource(filepath);                                                                       
-    var rows = await source.GetCompaniesAsync();                                                                           
-                                                                                                                           
-    var existingCompanies = await db.Companies.ToListAsync();                                                              
-                                                                                                                           
-    static string Normalize(string? value) =>                                                                              
-        (value ?? "").Trim().ToUpperInvariant();                                                                           
-                                                                                                                           
-    var processedKeys = new HashSet<(string, string)>();                                                                   
-                                                                                                                           
-    var created = 0;                                                                                                       
-    var skipped = 0;                                                                                                       
-    var unchanged = 0;                                                                                                     
-    var updated = 0;                                                                                                       
-                                                                                                                           
-    foreach (var row in rows)                                                                                              
-    {                                                                                                                      
-        if (string.IsNullOrWhiteSpace(row.Name))                                                                           
-        {                                                                                                                  
-            Console.Error.WriteLine($"Rad {row.SourceRowNumber} skippas: namn saknas.");                                   
-            skipped++;                                                                                                     
-            continue;                                                                                                      
-        }                                                                                                                  
-                                                                                                                           
-        var key = (Normalize(row.Name), Normalize(row.Headquarters));                                                      
-                                                                                                                           
-        if (!processedKeys.Add(key))                                                                                       
-        {                                                                                                                  
-            Console.Error.WriteLine(                                                                                       
-                $"Rad {row.SourceRowNumber} skippas: dubblett namn och land i filen");                                     
-            skipped++;                                                                                                     
-            continue;                                                                                                      
-        }                                                                                                                  
-                                                                                                                           
-        var matches = existingCompanies                                                                                     
-            .Where(company =>                                                                                              
-                Normalize(company.Name) == key.Item1 &&                                                                    
-                Normalize(company.Headquarters) == key.Item2)                                                               
-            .ToList();                                                                                                     
-                                                                                                                           
-        if (matches.Count > 1)                                                                                             
-        {                                                                                                                  
-            Console.Error.WriteLine($"Rad {row.SourceRowNumber} skippas: flera poster matchar i databasen.");              
-            skipped++;                                                                                                     
-            continue;                                                                                                      
-        }                                                                                                                  
-                                                                                                                           
-        if (matches.Count == 1)                                                                                            
-        {                                                                                                                  
-            var existing = matches[0];                                                                                     
-            var website = string.IsNullOrWhiteSpace(row.Website)                                                           
-                ? null                                                                                                     
-                : row.Website.Trim();                                                                                      
-                                                                                                                           
-            if (existing.Website == website                                                                                
-                && existing.LastModified == row.LastModified)                                                              
-            {                                                                                                              
-                unchanged++;                                                                                               
-            }                                                                                                              
-            else                                                                                                           
-            {                                                                                                              
-                existing.Website = website;                                                                                
-                existing.LastModified = row.LastModified;                                                                  
-                updated++;                                                                                                 
-            }                                                                                                              
-                                                                                                                           
-            continue;                                                                                                      
-        }                                                                                                                  
-                                                                                                                           
-        db.Companies.Add(new Company                                                                                       
-        {                                                                                                                  
-            Id = Guid.NewGuid(),                                                                                           
-            Name = row.Name.Trim(),                                                                                        
-            Headquarters = row.Headquarters?.Trim(),                                                                       
-            Website = row.Website,                                                                                         
-            ValueChain = row.ValueChain,                                                                                   
-            ProductionProcess = row.ProductionProcess,                                                                     
-            IndustryApplications = row.IndustryApplications,                                                               
-            IndustrySubsectorTags = row.IndustrySubsectorTags,                                                             
-            Investors = row.Investors,                                                                                     
-            AssociationFocus = row.AssociationFocus,                                                                       
-            FoundingYear = row.FoundingYear,                                                                               
-            StartupScaleupStatus = row.StartupScaleupStatus,                                                               
-            DisclosedInvestmentsSince2020 = row.DisclosedInvestmentsSince2020,                                             
-            DevelopmentStage = row.DevelopmentStage,                                                                       
-            LastModified = row.LastModified                                                                                
-        });                                                                                                                
-        created++;                                                                                                         
-    }                                                                                                                      
-                                                                                                                           
-    await db.SaveChangesAsync();                                                                                           
-    Console.WriteLine(                                                                                                     
-        $"Skapade: {created}, uppdaterade: {updated}, oförändrade: {unchanged}, överhoppade: {skipped}");                  
-}
-    private static async Task ImportSpeciesAsync(ImportDbContext db)                                                     
+       await using var db = new ImportDbContext(options);
+
+       var companyService = new CompanySyncService(db);
+
+       await companyService.ImportCompaniesAsync(filepathCompany);                                                                                 
+       await ImportSpeciesAsync(db, filePathSpecies);                                                                                   
+       await ImportCompanySpeciesAsync(db, filepathCompany);                                                                            
+   }             
+       
+    private static async Task ImportSpeciesAsync(ImportDbContext db, string filepath)                                                     
 {                                                                                                                   
-    var filepath = Path.Combine(                                                                                    
-        AppContext.BaseDirectory,                                                                                   
-        "data",                                                                                                     
-        "Algae species-All species.csv");                                                                           
+                                                                             
     var source = new CsvSpeciesDataSource(filepath);                                                                
     var rows = await source.ReadSpeciesAsync();                                                                     
                                                                                                                     
@@ -172,13 +73,8 @@ public sealed class ImportSyncService
     Console.WriteLine($"Arter skapade: {created}, överhoppade: {skipped}");                                         
 }
 
-    private static async Task ImportCompanySpeciesAsync(ImportDbContext db)
+    private static async Task ImportCompanySpeciesAsync(ImportDbContext db, string filepath)
     {
-        var filepath = Path.Combine(
-            AppContext.BaseDirectory,
-            "data",
-            "Companies-All companies.csv");
-
         var source = new CsvCompanyDataSource(filepath);
         var rows = await source.GetCompaniesAsync();
 
@@ -295,7 +191,5 @@ public sealed class ImportSyncService
 
         Console.WriteLine(
             $"Artkopplingar skapade: {created}, redan befintliga: {existing}, olösta: {unresolved}");
-
-
     }
 }

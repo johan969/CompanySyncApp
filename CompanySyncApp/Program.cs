@@ -10,8 +10,19 @@ internal static class Program
 {
     private static async Task Main()
     {
+        var filepathSpecies = Path.Combine(                                                                                    
+            AppContext.BaseDirectory,                                                                                   
+            "data",                                                                                                     
+            "Algae species-All species.csv");  
+        
+        var filepathCompanies  = Path.Combine(                                                                                           
+        AppContext.BaseDirectory,                                                                                          
+        "data",                                                                                                            
+        "Companies-All companies.csv");                                                                                    
+   ;                                                                       
+   
         var service = new ImportSyncService();
-        await service.ImportAsync();
+        await service.ImportAsync(filepathCompanies,filepathSpecies);
     }
     }
 
