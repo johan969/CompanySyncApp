@@ -18,5 +18,5 @@ public sealed record ImportedCompany
     public string? StartupScaleupStatus { get; init; }
     public decimal? DisclosedInvestmentsSince2020 { get; init; }
     public string? DevelopmentStage { get; init; }
-    public DateTimeOffset? LastModified { get; init; }
+    public DateOnly? LastModified { get; init; }
 }
