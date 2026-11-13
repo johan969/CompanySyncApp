@@ -26,6 +26,7 @@ public sealed class CompanySyncService
         var skipped = 0;
         var unchanged = 0;
         var updated = 0;
+        var conflicts = 0;
 
         foreach (var row in rows)
         {
@@ -48,25 +49,39 @@ public sealed class CompanySyncService
 
             var matches = FindCompanyMatches(existingCompanies, row);
 
-            if (matches.Count > 1)
-            {
-                Console.Error.WriteLine($"Rad {row.SourceRowNumber} skippas: flera poster matchar i databasen.");
-                skipped++;
-                continue;
-            }
-
             if (matches.Count == 1)
             {
                 var existing = matches[0];
+                var decision = GetUpdateDecision(existing, row);
 
-                if (!HasCompanyChanges(existing, row))
+                switch (decision)
                 {
-                    unchanged++;
-                }
-                else
-                {
-                    ApplyCompanyChanges(existing, row);
-                    updated++;
+                    case CompanyUpdateDecision.Allowed:
+                        ApplyCompanyChanges(existing, row);
+                        updated++;
+                        break;
+
+                    case CompanyUpdateDecision.Unchanged:
+                        unchanged++;
+                        break;
+
+                    case CompanyUpdateDecision.Conflict:
+                        Console.Error.WriteLine(
+                            $"Rad {row.SourceRowNumber}: konflikt — samma datum men olika innehåll. Ingen uppdatering.");
+                        conflicts++;
+                        break;
+
+                    case CompanyUpdateDecision.OlderSource:
+                        Console.WriteLine(
+                            $"Rad {row.SourceRowNumber} skippas: CSV-datumet är äldre.");
+                        skipped++;
+                        break;
+
+                    case CompanyUpdateDecision.MissingDate:
+                        Console.Error.WriteLine(
+                            $"Rad {row.SourceRowNumber} skippas: datum saknas i CSV-raden eller databasen.");
+                        skipped++;
+                        break;
                 }
 
                 continue;
@@ -110,8 +125,7 @@ public sealed class CompanySyncService
         var website = string.IsNullOrWhiteSpace(incoming.Website)
             ? null
             : incoming.Website.Trim();
-        return existing.Website != website
-               || existing.LastModified != incoming.LastModified;
+        return existing.Website != website;
     }
 
     private static void ApplyCompanyChanges(
@@ -140,5 +154,40 @@ public sealed class CompanySyncService
                 Normalize(company.Name) == name &&
                 Normalize(company.Headquarters) == country)
             .ToList();
+    }
+
+    private enum CompanyUpdateDecision
+    {
+        Allowed,
+        Unchanged,
+        Conflict,
+        OlderSource,
+        MissingDate
+    }
+
+    private static CompanyUpdateDecision GetUpdateDecision(
+        Company existing,
+        ImportedCompany incoming
+    )
+    {
+        if (!incoming.LastModified.HasValue ||
+            !existing.LastModified.HasValue)
+        {
+            return CompanyUpdateDecision.MissingDate;
+        }
+
+        if (incoming.LastModified.Value > existing.LastModified.Value)
+        {
+            return CompanyUpdateDecision.Allowed;
+        }
+
+        if (incoming.LastModified.Value < existing.LastModified.Value)
+        {
+            return CompanyUpdateDecision.OlderSource;
+        }
+
+        return HasCompanyChanges(existing, incoming)
+            ? CompanyUpdateDecision.Conflict
+            : CompanyUpdateDecision.Unchanged;
     }
 }
