@@ -8,10 +8,12 @@ namespace CompanySyncApp.Services;
 public class CompanySpeciesSyncService
 {
     private readonly ImportDbContext _db;
+
     public CompanySpeciesSyncService(ImportDbContext db)
     {
         _db = db;
     }
+
     public async Task ImportCompanySpeciesAsync(string filepath)
     {
         var source = new CsvCompanyDataSource(filepath);
@@ -81,48 +83,34 @@ public class CompanySpeciesSyncService
 
             var company = companyMatches[0];
 
-            using var reader = CsvReader.FromText(
-                row.Species,
-                new CsvReaderOptions { HasHeader = false });
-
-            while (reader.Read())
+            foreach (var speciesName in ParseSpeciesName(row.Species))
             {
-                for (var index = 0; index < reader.FieldCount; index++)
+                if (!speciesByName.TryGetValue(
+                        Normalize(speciesName), out var speciesMatches)
+                    || speciesMatches.Count != 1)
                 {
-                    var speciesName = reader.GetString(index).Trim();
-
-                    if (string.IsNullOrWhiteSpace(speciesName))
-                    {
-                        continue;
-                    }
-
-                    if (!speciesByName.TryGetValue(
-                            Normalize(speciesName), out var speciesMatches)
-                        || speciesMatches.Count != 1)
-                    {
-                        Console.Error.WriteLine(
-                            $"Rad {row.SourceRowNumber}: arten '{speciesName}' saknas eller är tvetydig. Kopplingen skippas.");
-                        unresolved++;
-                        continue;
-                    }
-
-                    var matchedSpecies = speciesMatches[0];
-                    var linkKey = (company.Id, matchedSpecies.Id);
-
-                    if (!knownLinks.Add(linkKey))
-                    {
-                        existing++;
-                        continue;
-                    }
-
-                    _db.CompanySpecies.Add(new CompanySpecies
-                    {
-                        CompanyId = company.Id,
-                        SpeciesId = matchedSpecies.Id
-                    });
-
-                    created++;
+                    Console.Error.WriteLine(
+                        $"Rad {row.SourceRowNumber}: arten '{speciesName}' saknas eller är tvetydig. Kopplingen skippas.");
+                    unresolved++;
+                    continue;
                 }
+
+                var matchedSpecies = speciesMatches[0];
+                var linkKey = (company.Id, matchedSpecies.Id);
+
+                if (!knownLinks.Add(linkKey))
+                {
+                    existing++;
+                    continue;
+                }
+
+                _db.CompanySpecies.Add(new CompanySpecies
+                {
+                    CompanyId = company.Id,
+                    SpeciesId = matchedSpecies.Id
+                });
+
+                created++;
             }
         }
 
@@ -130,5 +118,28 @@ public class CompanySpeciesSyncService
 
         Console.WriteLine(
             $"Artkopplingar skapade: {created}, redan befintliga: {existing}, olösta: {unresolved}");
+    }
+
+    private static List<string> ParseSpeciesName(string value)
+    {
+        var names = new List<string>();
+
+        using var reader = CsvReader.FromText(
+            value,
+            new CsvReaderOptions { HasHeader = false });
+
+        while (reader.Read())
+        {
+            for (var index = 0; index < reader.FieldCount; index++)
+            {
+                var name = reader.GetString(index).Trim();
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    names.Add(name);
+                }
+            }
+        }
+
+        return names;
     }
 }
