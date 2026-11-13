@@ -1,5 +1,6 @@
 using CompanySyncApp.Context;
 using CompanySyncApp.Models;
+using CompanySyncApp.Models.Enums;
 using CsvHelper;
 using Microsoft.EntityFrameworkCore;
 
@@ -35,19 +36,18 @@ public class CompanySpeciesSyncService
             .GroupBy(item => Normalize(item.SpeciesName))
             .ToDictionary(group => group.Key, group => group.ToList());
 
-        var existingLinks = await _db.CompanySpecies
-            .AsNoTracking()
-            .Select(link => new { link.CompanyId, link.SpeciesId })
-            .ToListAsync();
+        var existingLinks = await _db.CompanySpecies.ToListAsync();
 
         var knownLinks = existingLinks
             .Select(link => (link.CompanyId, link.SpeciesId))
             .ToHashSet();
 
         var processedCompanies = new HashSet<(string, string)>();
+
         var created = 0;
         var existing = 0;
         var unresolved = 0;
+        var outdated = 0;
 
         foreach (var row in rows)
         {
@@ -67,11 +67,6 @@ public class CompanySpeciesSyncService
                 continue;
             }
 
-            if (string.IsNullOrWhiteSpace(row.Species))
-            {
-                continue;
-            }
-
             if (!companiesByKey.TryGetValue(companyKey, out var companyMatches)
                 || companyMatches.Count != 1)
             {
@@ -82,20 +77,38 @@ public class CompanySpeciesSyncService
             }
 
             var company = companyMatches[0];
+            var incomingSpeciesIds = new HashSet<Guid>();
+            var hasAmbiguousSpecies = false;
 
-            foreach (var speciesName in ParseSpeciesName(row.Species))
+            var speciesNames = string.IsNullOrWhiteSpace(row.Species)
+                ? new List<string>()
+                : ParseSpeciesName(row.Species);
+
+            foreach (var speciesName in speciesNames)
             {
                 if (!speciesByName.TryGetValue(
-                        Normalize(speciesName), out var speciesMatches)
-                    || speciesMatches.Count != 1)
+                        Normalize(speciesName), out var speciesMatches))
                 {
                     Console.Error.WriteLine(
-                        $"Rad {row.SourceRowNumber}: arten '{speciesName}' saknas eller är tvetydig. Kopplingen skippas.");
+                        $"Rad {row.SourceRowNumber}: okänd art '{speciesName}', hoppas över.");
+                    unresolved++;
+                    continue;
+                }
+
+                if (speciesMatches.Count != 1)
+                {
+                    Console.Error.WriteLine(
+                        $"Rad {row.SourceRowNumber}: flera arter matchar '{speciesName}'.");
+                    hasAmbiguousSpecies = true;
                     unresolved++;
                     continue;
                 }
 
                 var matchedSpecies = speciesMatches[0];
+
+                // Även befintliga kopplingar ska räknas som närvarande.
+                incomingSpeciesIds.Add(matchedSpecies.Id);
+
                 var linkKey = (company.Id, matchedSpecies.Id);
 
                 if (!knownLinks.Add(linkKey))
@@ -107,17 +120,31 @@ public class CompanySpeciesSyncService
                 _db.CompanySpecies.Add(new CompanySpecies
                 {
                     CompanyId = company.Id,
-                    SpeciesId = matchedSpecies.Id
+                    SpeciesId = matchedSpecies.Id,
+                    VerificationStatus = VerificationStatus.ObservedInPublicSource
                 });
 
                 created++;
             }
+
+            if (hasAmbiguousSpecies)
+            {
+                Console.Error.WriteLine(
+                    $"Rad {row.SourceRowNumber}: inga gamla kopplingar inaktiveras eftersom artmatchningen är tvetydig.");
+                continue;
+            }
+
+            outdated += MarkMissingLinksOutdated(
+                company.Id,
+                incomingSpeciesIds,
+                existingLinks);
         }
 
         await _db.SaveChangesAsync();
 
         Console.WriteLine(
-            $"Artkopplingar skapade: {created}, redan befintliga: {existing}, olösta: {unresolved}");
+            $"Artkopplingar skapade: {created}, redan befintliga: {existing}, " +
+            $"Outdated: {outdated}, olösta: {unresolved}");
     }
 
     private static List<string> ParseSpeciesName(string value)
@@ -141,5 +168,37 @@ public class CompanySpeciesSyncService
         }
 
         return names;
+    }
+
+    private static int MarkMissingLinksOutdated(
+        Guid companyId,
+        IReadOnlySet<Guid> incomingSpeciesIds,
+        IEnumerable<CompanySpecies> existingLinks)
+    {
+        var outdatedCount = 0;
+
+        foreach (var link in existingLinks)
+        {
+            if (link.CompanyId != companyId)
+            {
+                continue;
+            }
+
+            if (link.VerificationStatus != VerificationStatus.Unverified &&
+                link.VerificationStatus != VerificationStatus.ObservedInPublicSource)
+            {
+                continue;
+            }
+
+            if (incomingSpeciesIds.Contains(link.SpeciesId))
+            {
+                continue;
+            }
+
+            link.VerificationStatus = VerificationStatus.Outdated;
+            outdatedCount++;
+        }
+
+        return outdatedCount;
     }
 }

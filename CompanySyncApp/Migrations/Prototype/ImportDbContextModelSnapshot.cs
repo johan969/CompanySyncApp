@@ -112,6 +112,11 @@ namespace CompanySyncApp.Migrations.Prototype
                     b.Property<Guid>("SpeciesId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("VerificationStatus")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
                     b.HasKey("CompanyId", "SpeciesId");
 
                     b.HasIndex("SpeciesId");

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using CompanySyncApp.Models;
+using CompanySyncApp.Models.Enums;
 
 namespace CompanySyncApp.Context;
 
@@ -23,6 +24,10 @@ public sealed class ImportDbContext : DbContext
 
         modelBuilder.Entity<CompanySpecies>()
             .HasKey(link => new { link.CompanyId, link.SpeciesId });
+
+        modelBuilder.Entity<CompanySpecies>()
+            .Property(link => link.VerificationStatus)
+            .HasDefaultValue(VerificationStatus.ObservedInPublicSource);
 
         modelBuilder.Entity<CompanySpecies>()
             .HasOne(link => link.Company)
